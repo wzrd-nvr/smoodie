@@ -98,8 +98,8 @@ jobs:
           echo "api: ${API_URL}"
           echo "web: ${WEB_URL}"
 
-          health="$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${API_URL}/healthz")"
-          echo "healthz: ${health}"
+          health="$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${API_URL}/health")"
+          echo "health: ${health}"
           echo "${health}" | grep -q '"database":"ok"' || { echo "::error::API cannot reach Cloud SQL"; exit 1; }
 
           curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${WEB_URL}/" | grep -qi "smoodie" || { echo "::error::web did not render"; exit 1; }

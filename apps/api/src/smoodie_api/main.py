@@ -16,8 +16,12 @@ class Health(BaseModel):
     database: Literal["ok", "unavailable"]
 
 
-@app.get("/healthz", response_model=Health)
-async def healthz() -> Health:
+# NOT "/healthz": Cloud Run's Google Frontend intercepts that exact path and
+# returns its own 404 before the request reaches the container. Verified against
+# the deployed service — every neighbouring path (/health, /livez, /readyz)
+# passes through, only /healthz is swallowed.
+@app.get("/health", response_model=Health)
+async def health() -> Health:
     database: Literal["ok", "unavailable"] = "ok"
     try:
         async with engine.connect() as conn:

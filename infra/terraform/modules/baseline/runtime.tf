@@ -163,6 +163,9 @@ resource "google_cloud_run_v2_service" "api" {
       template[0].containers[0].image,
       client,
       client_version,
+      # GCP populates a service-level scaling block we never set; without this
+      # every future plan shows a phantom in-place update.
+      scaling,
     ]
   }
 
@@ -216,6 +219,9 @@ resource "google_cloud_run_v2_service" "web" {
       template[0].containers[0].image,
       client,
       client_version,
+      # GCP populates a service-level scaling block we never set; without this
+      # every future plan shows a phantom in-place update.
+      scaling,
     ]
   }
 }

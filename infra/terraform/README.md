@@ -21,7 +21,28 @@ GitHub repo variables `GCP_{DEV,PROD}_{WIF_PROVIDER,DEPLOYER_SA,ARTIFACT_REGISTR
 are set from the Terraform outputs. Cloud Run and Cloud SQL are not provisioned
 yet — they arrive with issue #6.
 
+Live dev services:
+
+| | URL |
+|---|---|
+| API | https://smoodie-api-omfnxmyhgq-uc.a.run.app |
+| Web | https://smoodie-web-omfnxmyhgq-uc.a.run.app |
+
+Deploys happen automatically on push to `main` via `.github/workflows/deploy.yml`
+(build → Alembic migration job → deploy both services → smoke test).
+
 ## Gotchas learned the hard way
+
+- **Never name a Cloud Run route `/healthz`.** Google's Frontend intercepts that
+  exact path and returns its own 404 before the request reaches the container.
+  `/health`, `/_health`, `/livez`, `/readyz` and everything else pass through
+  normally; `/healthz/` just redirects into the same hole. The API serves
+  `/health`, and a test pins the path so it cannot silently regress.
+- **Cloud SQL shared-core tiers require the ENTERPRISE edition.** New instances
+  default to ENTERPRISE_PLUS, which rejects `db-f1-micro`/`db-g1-small` outright.
+- **Cloud Run services need `ignore_changes` on the container image** (the deploy
+  pipeline owns it, not Terraform) **and on the service-level `scaling` block**,
+  which GCP populates itself and would otherwise show as a phantom diff forever.
 
 - **`payload` is STRING, not JSON.** A Pub/Sub BigQuery subscription silently
   drops every message whose target column is JSON-typed — no error, no dead

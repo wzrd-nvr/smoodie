@@ -6,6 +6,9 @@ RUN uv sync --frozen --no-install-project --no-dev
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
+# README.md is declared as the project readme in pyproject.toml; without it the
+# project wheel fails to build in the sync below.
+COPY README.md ./
 RUN uv sync --frozen --no-dev
 
 FROM python:3.13-slim-bookworm

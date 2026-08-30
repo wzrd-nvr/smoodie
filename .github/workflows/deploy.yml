@@ -1,0 +1,112 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+# One deploy at a time; a newer push supersedes a queued one but never
+# interrupts a migration already in flight.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      PROJECT_ID: smoodie-dev
+      REGION: us-central1
+      REGISTRY: ${{ vars.GCP_DEV_ARTIFACT_REGISTRY }}
+      SQL_CONNECTION: ${{ vars.GCP_DEV_SQL_CONNECTION }}
+      API_SA: ${{ vars.GCP_DEV_API_SA }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_DEV_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEV_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push API image
+        run: |
+          docker build -t "${REGISTRY}/api:${GITHUB_SHA}" -t "${REGISTRY}/api:latest" apps/api
+          docker push "${REGISTRY}/api:${GITHUB_SHA}"
+          docker push "${REGISTRY}/api:latest"
+
+      # Root context: the pnpm lockfile and workspace manifest live there.
+      - name: Build and push web image
+        run: |
+          docker build -f apps/web/Dockerfile -t "${REGISTRY}/web:${GITHUB_SHA}" -t "${REGISTRY}/web:latest" .
+          docker push "${REGISTRY}/web:${GITHUB_SHA}"
+          docker push "${REGISTRY}/web:latest"
+
+      # Migrations run before the new API image is serving, so the schema is
+      # never behind the code that expects it.
+      - name: Run database migrations
+        run: |
+          gcloud run jobs deploy smoodie-migrate \
+            --image="${REGISTRY}/api:${GITHUB_SHA}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --service-account="${API_SA}" \
+            --set-cloudsql-instances="${SQL_CONNECTION}" \
+            --set-secrets=SMOODIE_DATABASE_URL=smoodie-database-url:latest \
+            --set-env-vars=SMOODIE_ENV=dev \
+            --command=alembic \
+            --args=upgrade,head \
+            --max-retries=0 \
+            --execute-now \
+            --wait \
+            --quiet
+
+      - name: Deploy API
+        run: |
+          gcloud run deploy smoodie-api \
+            --image="${REGISTRY}/api:${GITHUB_SHA}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --quiet
+
+      - name: Deploy web
+        run: |
+          gcloud run deploy smoodie-web \
+            --image="${REGISTRY}/web:${GITHUB_SHA}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          API_URL="$(gcloud run services describe smoodie-api --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+          WEB_URL="$(gcloud run services describe smoodie-web --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+          echo "api: ${API_URL}"
+          echo "web: ${WEB_URL}"
+
+          health="$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${API_URL}/healthz")"
+          echo "healthz: ${health}"
+          echo "${health}" | grep -q '"database":"ok"' || { echo "::error::API cannot reach Cloud SQL"; exit 1; }
+
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${WEB_URL}/" | grep -qi "smoodie" || { echo "::error::web did not render"; exit 1; }
+
+          {
+            echo "### Deployed"
+            echo ""
+            echo "- API: ${API_URL}"
+            echo "- Web: ${WEB_URL}"
+          } >> "${GITHUB_STEP_SUMMARY}"

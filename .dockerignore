@@ -1,0 +1,17 @@
+**/node_modules
+**/build
+**/dist
+**/.react-router
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.terraform
+**/*.tfstate*
+.git
+.github
+docs
+infra
+**/.env
+**/.DS_Store

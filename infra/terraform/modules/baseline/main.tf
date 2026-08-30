@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -23,6 +27,16 @@ variable "media_cors_origins" {
   # Dev origins by default; prod env overrides with the real app domains.
   default = ["http://localhost:5173", "http://localhost:3000"]
 }
+variable "sql_tier" {
+  type = string
+  # Shared-core is ample for pre-launch dev traffic (~$9/mo). Prod moves to a
+  # dedicated tier in M5; the instance can be resized without recreation.
+  default = "db-f1-micro"
+}
+variable "sql_deletion_protection" {
+  type    = bool
+  default = true
+}
 variable "bigquery_deletion_protection" {
   type = bool
   # Safe by default: the events table is the ML training corpus. Schema changes
@@ -33,6 +47,7 @@ variable "bigquery_deletion_protection" {
 locals {
   apis = [
     "run.googleapis.com",
+    "cloudbuild.googleapis.com",
     "sqladmin.googleapis.com",
     "artifactregistry.googleapis.com",
     "pubsub.googleapis.com",

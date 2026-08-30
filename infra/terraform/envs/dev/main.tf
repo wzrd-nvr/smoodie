@@ -28,6 +28,9 @@ module "baseline" {
 }
 
 output "artifact_registry" { value = module.baseline.artifact_registry }
+output "api_url" { value = module.baseline.api_url }
+output "web_url" { value = module.baseline.web_url }
+output "sql_connection_name" { value = module.baseline.sql_connection_name }
 output "wif_provider" { value = module.baseline.wif_provider }
 output "deployer_sa" { value = module.baseline.deployer_sa }
 output "media_bucket" { value = module.baseline.media_bucket }

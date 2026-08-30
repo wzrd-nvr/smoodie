@@ -1,0 +1,6 @@
+packages:
+  - apps/web
+  - packages/*
+
+executionEnv:
+  nodeVersion: 24.20.0

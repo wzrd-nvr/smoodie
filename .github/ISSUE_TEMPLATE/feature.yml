@@ -1,0 +1,31 @@
+name: Feature / task
+description: Standard smoodie work item. Title format — [area] Imperative summary
+body:
+  - type: textarea
+    id: overview
+    attributes:
+      label: Overview
+      description: What this is and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing
+      description: >
+        Mandatory. Every feature ships with its testing pipeline: unit + integration
+        tests wired into CI. An issue without satisfied testing checkboxes is not done.
+      value: |
+        - [ ] Unit tests
+        - [ ] Integration tests
+        - [ ] Covered in CI
+    validations:
+      required: true

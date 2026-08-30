@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "smoodie:events:recipe_query_submitted:v1",
+  "title": "recipe_query_submitted",
+  "description": "A natural-language 'what should I cook' style query. Training signal for the phase-2 recipe builder — logged from day 1.",
+  "type": "object",
+  "required": ["query", "surface"],
+  "additionalProperties": false,
+  "properties": {
+    "query": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "surface": { "enum": ["search", "composer", "home"] },
+    "result_count": { "type": "integer", "minimum": 0 },
+    "session_id": { "type": "string" }
+  }
+}

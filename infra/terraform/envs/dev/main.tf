@@ -1,0 +1,34 @@
+terraform {
+  required_version = ">= 1.9"
+  # Uncomment after creating the state bucket (see infra/terraform/README.md):
+  # backend "gcs" {
+  #   bucket = "smoodie-dev-tfstate"
+  #   prefix = "envs/dev"
+  # }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+variable "project_id" {
+  type    = string
+  default = "smoodie-dev"
+}
+variable "region" {
+  type    = string
+  default = "us-central1"
+}
+
+module "baseline" {
+  source     = "../../modules/baseline"
+  project_id = var.project_id
+  region     = var.region
+  env        = "dev"
+}
+
+output "artifact_registry" { value = module.baseline.artifact_registry }
+output "wif_provider" { value = module.baseline.wif_provider }
+output "deployer_sa" { value = module.baseline.deployer_sa }
+output "media_bucket" { value = module.baseline.media_bucket }

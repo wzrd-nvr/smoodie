@@ -1,0 +1,329 @@
+<title>smoodie — Review System Spec</title>
+<style>
+  :root {
+    --paper: #FAF9F6;
+    --ink: #252A21;
+    --muted: #6E7566;
+    --accent: #4F7042;
+    --accent-soft: #E8EEE3;
+    --gate: #A85B2A;
+    --gate-soft: #F3E9DF;
+    --line: #DDDCD4;
+    --code-bg: #F1F0EA;
+    --card: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #181B17;
+      --ink: #E4E6DF;
+      --muted: #98A08F;
+      --accent: #8FB47D;
+      --accent-soft: #24301F;
+      --gate: #D69055;
+      --gate-soft: #33261B;
+      --line: #33382F;
+      --code-bg: #20241E;
+      --card: #1E221C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #181B17;
+    --ink: #E4E6DF;
+    --muted: #98A08F;
+    --accent: #8FB47D;
+    --accent-soft: #24301F;
+    --gate: #D69055;
+    --gate-soft: #33261B;
+    --line: #33382F;
+    --code-bg: #20241E;
+    --card: #1E221C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 3rem 1.25rem 6rem;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1, h2, h3 { font-family: Charter, "Iowan Old Style", Georgia, serif; text-wrap: balance; line-height: 1.2; }
+  h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 .5rem; }
+  h2 { font-size: 1.55rem; margin: 3rem 0 .75rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  h2 .num { color: var(--accent); margin-right: .5rem; font-variant-numeric: tabular-nums; }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+  p { margin: .75rem 0; max-width: 65ch; }
+  .eyebrow {
+    text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 600;
+    color: var(--accent); margin-bottom: .75rem;
+  }
+  .meta { color: var(--muted); font-size: .85rem; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin-bottom: 2.5rem; }
+  .principle {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 1rem 1.25rem; border-radius: 0 6px 6px 0; margin: 1.5rem 0;
+  }
+  .principle strong { color: var(--accent); }
+  .amend {
+    background: var(--gate-soft); border-left: 3px solid var(--gate);
+    padding: 1rem 1.25rem; border-radius: 0 6px 6px 0; margin: 1.5rem 0;
+  }
+  .amend strong { color: var(--gate); }
+  .tablewrap { overflow-x: auto; margin: 1rem 0; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; background: var(--card); }
+  th {
+    text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); padding: .6rem .8rem; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: .55rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { white-space: nowrap; }
+  .n { font-variant-numeric: tabular-nums; font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace; font-size: .8rem; }
+  .pos { color: var(--accent); font-weight: 600; }
+  .neg { color: var(--gate); font-weight: 600; }
+  code, pre {
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .82rem;
+  }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 1rem 1.25rem; overflow-x: auto; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; }
+  ul { padding-left: 1.25rem; } li { margin: .35rem 0; max-width: 62ch; }
+  .quote { border-left: 3px solid var(--line); padding: .1rem 1rem; color: var(--muted); font-style: italic; margin: .75rem 0; }
+  .tag {
+    display: inline-block; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    padding: .15rem .5rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: .5rem; vertical-align: middle;
+  }
+  .tag.p2 { background: var(--gate-soft); color: var(--gate); }
+  .mermaid { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; overflow-x: auto; }
+  a { color: var(--accent); }
+</style>
+<main>
+  <div class="eyebrow">smoodie · internal design spec</div>
+  <h1>Two-Tier Critique with Earned Unlock</h1>
+  <p style="font-size:1.1rem; color:var(--muted); max-width:60ch;">The recipe review system: anyone can speak, the instrument is gated, and every verdict carries a confidence weight instead of hitting a wall.</p>
+  <div class="meta">
+    <span>Status: <strong>Adopted</strong></span>
+    <span>Scope: recipe posts (discussions use votes)</span>
+    <span>MVP slice: Tier 0 + Tier 1 (M3) · full system M6–M7</span>
+    <span>2026-08-30</span>
+  </div>
+
+  <div class="principle">
+    <strong>Governing principle.</strong> Gate the instrument, not the right to speak. Anyone can leave a verdict; the gate controls (a) whether it enters the scored aggregate and (b) which question set is offered. Recipe review supply is thin — a hard wall kills volume and pushes people to lie past it. A soft gate with a confidence weight gets honest data and keeps supply.
+  </div>
+
+  <h2><span class="num">1</span>Tier definitions</h2>
+  <div class="tablewrap"><table>
+    <tr><th></th><th>Tier 0 — Signal</th><th>Tier 1 — Verdict</th><th>Tier 2 — Cook's Report</th></tr>
+    <tr><td>Claim</td><td>"Looks good / saved it"</td><td>"I made this"</td><td>"I made this and I'll tell you about it"</td></tr>
+    <tr><td>Requires</td><td>Nothing</td><td>Cook claim</td><td>Verified cook session</td></tr>
+    <tr><td>Time cost</td><td>1 tap</td><td>~10 sec</td><td>60–90 sec</td></tr>
+    <tr><td>Enters score</td><td>No</td><td>Yes, weighted</td><td>Yes, weighted</td></tr>
+    <tr><td>Feeds flavor wheel</td><td>No</td><td>No</td><td>Yes</td></tr>
+    <tr><td>Feeds penalty analysis</td><td>No</td><td>No</td><td>Yes</td></tr>
+    <tr><td>Public label</td><td>"Saved"</td><td>"Cooked it"</td><td>"Cooked it ✓ — full report"</td></tr>
+  </table></div>
+  <p>Tier 0 exists to absorb the "haven't made it yet but 3 stars" traffic: give that impulse a legitimate outlet and it stops contaminating ratings. Saves are demand signal, worthless for quality — stored in a <em>separate table</em> entirely. Tier 2 has an internal extension (<strong>2b</strong>) that unlocks RATA intensity sliders and the modality grid once a user demonstrates calibration; same schema, richer values, not a separate tier in the data model.</p>
+
+  <h2><span class="num">2</span>Field specification</h2>
+  <h3>Tier 1 — Verdict <span class="tag">MVP · M3</span></h3>
+  <p>Three inputs, one screen, no scrolling.</p>
+<pre><code>make_again   bool                                      required
+fidelity     enum(as_written|minor_change|major_change) required
+outcome      enum(worked|failed)                        required
+note         text ≤280                                  optional
+photo        media                                      optional</code></pre>
+  <ul>
+    <li><code>outcome</code> is separate from <code>make_again</code> on purpose: "it worked and I don't want it again" and "it failed and I'll retry" are both common and both meaningful.</li>
+    <li>If <code>fidelity != as_written</code>: show the ingredient list as tappable <strong>chips</strong> to capture swaps. Chips are 3 seconds and produce structured data; free text is 30 seconds and produces a parsing problem.</li>
+    <li>If <code>outcome == failed</code>: branch straight to the execution block and skip hedonic questions. Asking how much someone liked a broken sauce is noise.</li>
+  </ul>
+
+  <h3>Tier 2 — Cook's Report <span class="tag p2">Phase 2 · M7</span></h3>
+  <p>Everything in Tier 1, plus (ordered hedonic → execution; fun questions get energy, admin questions get fatigue):</p>
+<pre><code># Hedonic
+overall_liking       5-pt labeled
+
+# Directional / JAR (max 4, author-selected at publish)
+jar[]                attribute_id + {-1, 0, +1}
+  # axes: salt, heat, sweetness, acidity, richness,
+  #       doneness, thickness, seasoning_overall
+  # author picks ≤4; default = category's top 2 by variance
+
+# Descriptive (CATA) — 12–18 category-specific chips
+terms[]              attribute_id[]
+  # 2b unlock adds intensity 1–4 per selected term (RATA)
+
+# Execution
+instruction_clarity  5-pt
+timing_accuracy      enum(much_faster|faster|accurate|slower|much_slower)
+yield_accuracy       enum(under|as_stated|over)
+difficulty_actual    5-pt
+failure_mode         enum(...) | null
+
+# 2b only — modality grid
+appearance, aroma, texture, aftertaste   5-pt each
+
+# Context (auto-filled where possible, editable)
+skill_self_rated, equipment_used, scaled_by,
+altitude_m, diet_tags, served_to</code></pre>
+
+  <h2><span class="num">3</span>The gate: two independent mechanisms</h2>
+  <p>Most designs get this wrong by merging them. They answer different questions with different evidence.</p>
+  <div class="tablewrap"><table>
+    <tr><th></th><th>Gate A — per-review eligibility</th><th>Gate B — per-user capability</th></tr>
+    <tr><td>Question</td><td>Did this person cook this recipe on this occasion?</td><td>Has this account demonstrated calibrated reporting?</td></tr>
+    <tr><td>Scope</td><td>One review. Recomputed per submission. Never inherited.</td><td>The account. Slow-moving.</td></tr>
+    <tr><td>Output</td><td><code>cook_confidence ∈ [0,1]</code></td><td><code>instrument_level ∈ {verdict, report, calibrated}</code></td></tr>
+  </table></div>
+  <p>A first-time user with a perfect cook session passes Gate A at 0.9 and still gets Tier 1 only (Gate B hasn't cleared). A calibrated veteran reviewing a recipe they didn't cook fails Gate A and gets Tier 0. Both are correct behavior.</p>
+
+  <h2><span class="num">4</span>Gate A: cook-confidence scoring</h2>
+  <p>Logistic model over evidence signals. Hand-set priors below, recalibrated against a labeled audit set once one exists — <em>not final numbers</em>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Signal</th><th>Prior</th><th>Notes</th></tr>
+    <tr><td>Cook-mode session opened for this recipe</td><td class="n pos">+0.25</td><td>Baseline <span class="tag p2">M6</span></td></tr>
+    <tr><td>Session duration within plausible band</td><td class="n pos">+0.20</td><td>Band widens for long/passive recipes</td></tr>
+    <tr><td>≥2 step timers started</td><td class="n pos">+0.10</td><td></td></tr>
+    <tr><td>≥60% of ingredient checklist tapped</td><td class="n pos">+0.10</td><td></td></tr>
+    <tr><td>In-app camera capture</td><td class="n pos">+0.20</td><td>Server-side provenance, not EXIF</td></tr>
+    <tr><td>Gallery upload only</td><td class="n pos">+0.05</td><td>Weak; forgeable</td></tr>
+    <tr><td>Photo pHash collides with known web image</td><td class="n neg">−0.60</td><td>Hard penalty</td></tr>
+    <tr><td>Review submitted ≤72h after session end</td><td class="n pos">+0.10</td><td>Decays afterward</td></tr>
+    <tr><td>Repeat cook of same recipe</td><td class="n pos">+0.15</td><td>Strongest positive</td></tr>
+    <tr><td>Historical consensus agreement (Dawid-Skene style)</td><td class="n">±0.15</td><td>Needs ~10 prior reviews</td></tr>
+    <tr><td>Account age &lt;24h</td><td class="n neg">−0.15</td><td></td></tr>
+    <tr><td>Session duration &lt;25% of stated</td><td class="n neg">−0.30</td><td></td></tr>
+    <tr><td>No session, retroactive claim only</td><td class="n neg">−0.35</td><td>See fallback path</td></tr>
+  </table></div>
+<pre><code>gate_a:
+  tier1_scoring_floor: 0.35   # below: review displays, weight = 0
+  tier2_offer_floor:   0.65   # below: Tier 2 is not offered
+  audit_flag_ceiling:  0.20   # below: queue for review
+  session_ttl_hours:   72     # Tier 2 window closes after this
+# config, not constants — and NEVER published to clients</code></pre>
+  <ul>
+    <li><strong>Retroactive claim path</strong> (the MVP's primary path): claim the cook, attach a photo, answer 2–3 outcome-variance questions derived from the recipe ("did the dough come together in the stated 8 minutes?"). No lookup-able correct answer — we check internal consistency, not grade a quiz. Grants a ceiling of ~0.55: passes Tier 1 scoring, never Tier 2.</li>
+    <li><strong>Multi-session cooks</strong>: sessions pause, resume, and span days; compute time bands against total elapsed with active-work carve-outs, or every bread recipe auto-fails.</li>
+    <li><strong>Category-specific bands</strong>: a cocktail is 90 seconds, a braise is 4 hours. Store <code>expected_active_minutes</code> / <code>expected_total_minutes</code> per recipe; derive bands from category distributions, not global ones.</li>
+    <li><strong>Retroactive recompute</strong>: confidence is not frozen at write time. Reliability shifts and late pHash matches trigger recompute and re-aggregation. Confidence is a <em>versioned</em> field carrying its model version.</li>
+  </ul>
+
+  <h2><span class="num">5</span>Gate B: instrument unlock <span class="tag p2">Phase 2 · M7</span></h2>
+<pre><code>gate_b:
+  report:                        # unlocks Tier 2
+    verified_cooks_lifetime: 3   # each at cook_confidence ≥ 0.65
+    distinct_recipes: 3
+    account_age_days: 7
+    moderation_strikes: 0
+  calibrated:                    # unlocks 2b (RATA + modality grid)
+    completed_reports: 10
+    consensus_agreement: ≥ 0.6   # rank correlation vs settled profile
+    jar_variance: ≥ threshold    # rejects "just right to everything"
+    calibration_exercise: passed # optional, cheap, high-yield</code></pre>
+  <ul>
+    <li><strong>jar_variance</strong> is a straggler filter: a user whose JAR responses are 95% zeros isn't perceiving, they're clicking through. Don't hand them intensity sliders.</li>
+    <li><strong>calibration_exercise</strong>: rate three reference items with known consensus profiles; store a per-user scale-usage correction. Teams that skip this get users who never touch the ends of any scale and no way to normalize it out.</li>
+    <li>Unlocks never expire, but scores degrade: if consensus agreement drops below floor over a rolling 20 reports, demote to <code>report</code> <em>silently</em>. Nothing generates gaming faster than a visible status you can lose.</li>
+  </ul>
+
+  <h2><span class="num">6</span>State machine</h2>
+  <pre class="mermaid">
+flowchart TD
+    A[Open recipe] -->|save / like| T0["TIER 0 — non-scoring<br/>(separate saves table)"]
+    A -->|start cook mode| S["Cook session<br/>timers · checklist · pause/resume"]
+    A -->|no session| R["Retroactive claim<br/>photo + 2–3 plausibility Qs"]
+    S --> G{{"Gate A:<br/>compute cook_confidence"}}
+    R --> G
+    G -->|"conf &lt; 0.35"| U["TIER 1 · weight 0<br/>labeled 'unverified'"]
+    G -->|"conf ≥ 0.35"| T1["TIER 1 — Verdict<br/>weighted into aggregate"]
+    T1 -->|"conf ≥ 0.65 AND Gate B ≥ report"| T2["TIER 2 — Cook's Report<br/>(invitational prompt, ≤72h)"]
+    T2 -->|"Gate B == calibrated"| T2B["TIER 2b<br/>RATA + modality grid"]
+  </pre>
+  <p>Tier 2 is <strong>invitational, not requestive</strong> — a post-cook prompt the evening of the session, never a form buried in the recipe page. Prompted completion runs several multiples of self-initiated. Findable if sought, but not the designed path.</p>
+
+  <h2><span class="num">7</span>Weighting into the aggregate</h2>
+  <pre><code>w = cook_confidence × user_reliability × recency_decay</code></pre>
+  <p>Tier is <em>not</em> a term in the equation. Tier is a UI construct; the epistemic content is already in <code>cook_confidence</code>. A tier multiplier double-counts and can hand a suspicious Tier 2 report more weight than a clean Tier 1 verdict.</p>
+  <ul>
+    <li>Aggregate <code>make_again</code> with a <strong>weighted Wilson lower bound</strong> (or beta-binomial against a category prior). Publish <em>n</em>. Never a raw proportion. Public display: <strong>"92% would make again (n=41)"</strong> — no stars anywhere on the platform.</li>
+    <li><code>as_written</code> → full weight to canonical · <code>minor_change</code> → full weight, swap logged as variant annotation · <code>major_change</code> → weight 0 on canonical; forks or attaches to a variant node.</li>
+  </ul>
+
+  <h2><span class="num">8</span>Anti-gaming</h2>
+  <ul>
+    <li><strong>Never publish thresholds</strong> — not in docs, UI, or error copy. "Not enough signal from this cook" is the whole message.</li>
+    <li>Per-user threshold jitter (±0.03) so behavior can't be reverse-engineered by A/B'ing your own account.</li>
+    <li>Rate-limit verified cooks per user per day; nobody legitimately completes nine cook sessions on a Tuesday.</li>
+    <li>Cross-account correlation: shared device fingerprints, identical timing, synchronized starts. Ring detection matters more than individual fraud.</li>
+    <li>Fraud economics: price a fake Tier 2 report before hardening further. If nobody profits, bad data is laziness, and laziness is the <code>jar_variance</code> filter's job.</li>
+  </ul>
+
+  <h2><span class="num">9</span>The built-in bias, and the mitigation</h2>
+  <p>Gating on completed cooks creates <strong>survivorship bias</strong>: abandoners never review, so the verified pool over-represents successes and hides recipes that are confusing, badly timed, or fail silently. Mitigation — and genuinely novel data nobody else has — <strong>instrument the abandonment</strong>. Session started but never completed → one-question prompt the next day:</p>
+<pre><code>abandon_reason    enum(ran_out_of_time | missing_ingredient |
+                       step_unclear | technique_failed |
+                       changed_plans | equipment_issue)
+abandoned_at_step int</code></pre>
+  <p><code>step_unclear</code> and <code>technique_failed</code> bucketed by step index tell an author more than a hundred glowing reviews. This is a Tier 1-class artifact: weighted and displayed as one.</p>
+
+  <h2><span class="num">10</span>Instrument from day one</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Metric</th><th>Why</th><th>Watch for</th></tr>
+    <tr><td>Gate A pass rate</td><td>Threshold calibration</td><td>&lt;40% = gate too tight, losing supply</td></tr>
+    <tr><td>Tier 2 offer→start rate</td><td>Prompt quality</td><td>&lt;25% = invitation copy or timing wrong</td></tr>
+    <tr><td>Tier 2 start→complete rate</td><td>Form length</td><td>&lt;60% = cut questions</td></tr>
+    <tr><td>Abandonment by question index</td><td>Which question kills it</td><td>Usually the CATA screen or third JAR item</td></tr>
+    <tr><td>Tier 1 vs Tier 2 verdict divergence</td><td>Selection bias</td><td>&gt;10pp = gate selects non-representative pool; correct the aggregate</td></tr>
+    <tr><td>Median recall_lag_hours</td><td>Sensory decay</td><td>Rising median = shorten the TTL</td></tr>
+    <tr><td>Reports per recipe distribution</td><td>Cold-start reality</td><td>Median recipe sits under 10 — flavor wheel needs a display floor</td></tr>
+  </table></div>
+
+  <h2><span class="num">11</span>Copy per gate state</h2>
+  <p>Tone rule: the gate never accuses. It describes what's missing and offers the next step.</p>
+  <div class="quote">Passed, Tier 2 offered — "You cooked this Tuesday. Got 90 seconds to help the next person?"</div>
+  <div class="quote">Passed Gate A, Gate B not met — "Thanks. After a couple more cooks you'll be able to leave a full report."</div>
+  <div class="quote">Retroactive claim — "Didn't have the app open? No problem, answer a couple of questions about how it went."</div>
+  <div class="quote">Below scoring floor — "Saved your note. It'll show on the recipe, but it won't count toward the rating until we can confirm the cook."</div>
+  <div class="quote">Tier 0 — "Saved. Rate it once you've made it."</div>
+  <p>Never write "verified cook" as a status to pursue — write it as something that happens to the user. The moment it reads as a badge to chase, people chase it.</p>
+
+  <h2><span class="num">12</span>Platform integration (smoodie)</h2>
+  <div class="amend">
+    <strong>Amendments adopted for smoodie.</strong>
+    (1) <em>Web-first v0</em>: MVP is a web app, so the strongest provenance signals (in-app camera, session telemetry) don't exist yet — the retroactive-claim path is the primary MVP path and v0 confidence weights lean on photo, account age, timing, and the ~0.55 claim ceiling.
+    (2) <em>Recipe versioning</em>: authors edit recipes; reviews pin <code>recipe_version</code> at claim time, and cross-version weight is annotated in the aggregate.
+    (3) <em>Non-recipe posts</em>: this system is recipe-only — discussion posts and comments use upvote/downvote.
+    (4) <em>Display metric</em>: the public score is the weighted Wilson "% would make again (n)" everywhere; stars appear nowhere.
+  </div>
+
+  <h3>Schema mapping (all tables land in migration 0001, day 1)</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Concept</th><th>Postgres</th><th>Notes</th></tr>
+    <tr><td>Tier 0</td><td><code>saves</code></td><td>Separate table, non-scoring, demand signal</td></tr>
+    <tr><td>Verdict / Report</td><td><code>reviews</code></td><td>Tier 1 columns required; Tier 2 (<code>jar</code>, <code>cata</code>, <code>execution</code>, <code>modality</code>, <code>context</code> jsonb) nullable. UNIQUE(recipe, user); repeat cooks update, history via events</td></tr>
+    <tr><td>Gate A output</td><td><code>review_confidence</code></td><td>Versioned rows: <code>cook_confidence</code>, <code>model_version</code>, <code>is_current</code> — supports retroactive recompute</td></tr>
+    <tr><td>Cook evidence</td><td><code>cook_sessions</code></td><td><code>kind = live | retroactive</code>; telemetry + <code>plausibility_answers</code>; abandonment fields</td></tr>
+    <tr><td>Gate B state</td><td><code>user_reliability</code></td><td><code>instrument_level</code>, consensus agreement, jar variance</td></tr>
+    <tr><td>JAR/CATA catalogs</td><td><code>review_attributes</code>, <code>recipe_review_axes</code></td><td>Author-picked ≤4 JAR axes per recipe</td></tr>
+    <tr><td>Thresholds</td><td>app config / env</td><td>Never in DB rows a client could read, never in copy</td></tr>
+  </table></div>
+
+  <h3>API surface</h3>
+<pre><code>POST /v1/posts/{id}/cook-claims   # retroactive claim → claim id + plausibility Qs
+POST /v1/posts/{id}/reviews       # Tier 1 body + claim id → scored server-side
+GET  /v1/posts/{id}/reviews       # weighted list, unverified labeled
+PUT  /v1/posts/{id}/save          # Tier 0
+PUT  /v1/posts/{id}/vote          # discussions only (value 1|-1|0)</code></pre>
+
+  <h3>Rollout</h3>
+  <div class="tablewrap"><table>
+    <tr><th>Milestone</th><th>Ships</th></tr>
+    <tr><td>M3 <span class="tag">MVP</span></td><td>Saves, votes, retroactive claims, Tier 1 verdict + chips, v0 confidence, Wilson aggregate, gate copy, all instrumentation events → BigQuery</td></tr>
+    <tr><td>M6 <span class="tag p2">Phase 2</span></td><td>Live cook mode (timers, checklist, multi-day sessions), full Gate A signal set, abandonment prompts</td></tr>
+    <tr><td>M7 <span class="tag p2">Phase 2</span></td><td>Tier 2 Cook's Report, Gate B unlocks, calibration exercise, reliability/consensus pipeline, 2b RATA + modality</td></tr>
+  </table></div>
+</main>

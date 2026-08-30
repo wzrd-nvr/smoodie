@@ -1,0 +1,24 @@
+name: ci-web
+
+on:
+  pull_request:
+    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", ".github/workflows/ci-web.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", ".github/workflows/ci-web.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web typecheck
+      - run: pnpm --filter web lint
+      - run: pnpm --filter web test
+      - run: pnpm --filter web build

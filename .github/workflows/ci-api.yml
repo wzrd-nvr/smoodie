@@ -1,0 +1,44 @@
+name: ci-api
+
+on:
+  pull_request:
+    paths: ["apps/api/**", ".github/workflows/ci-api.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/api/**", ".github/workflows/ci-api.yml"]
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smoodie
+          POSTGRES_PASSWORD: smoodie
+          POSTGRES_DB: smoodie
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U smoodie"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      SMOODIE_ENV: ci
+      SMOODIE_DATABASE_URL: postgresql+asyncpg://smoodie:smoodie@localhost:5432/smoodie
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests alembic
+      - run: uv run ruff format --check src tests alembic
+      - run: uv run mypy
+      - run: uv run alembic upgrade head
+      - run: uv run pytest --cov --cov-fail-under=80

@@ -1,0 +1,32 @@
+# deps / builds
+node_modules/
+build/
+dist/
+.react-router/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+*-sa-key.json
+
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.auto.tfvars.example
+
+# editor / os
+.DS_Store
+.idea/
+*.local

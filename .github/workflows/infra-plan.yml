@@ -1,0 +1,22 @@
+name: infra-plan
+
+on:
+  pull_request:
+    paths: ["infra/**", ".github/workflows/infra-plan.yml"]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform -chdir=envs/dev init -backend=false
+      - run: terraform -chdir=envs/dev validate
+      - run: terraform -chdir=envs/prod init -backend=false
+      - run: terraform -chdir=envs/prod validate
+    # A real `terraform plan` against GCP (via WIF) is enabled once the projects
+    # and state buckets exist — see infra/terraform/README.md.

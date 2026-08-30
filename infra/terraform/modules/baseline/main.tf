@@ -25,9 +25,9 @@ variable "media_cors_origins" {
 }
 variable "bigquery_deletion_protection" {
   type = bool
-  # Pre-launch the events table carries only test data and the schema is still
-  # settling. Flipped to true in M5 launch hardening, before real data lands.
-  default = false
+  # Safe by default: the events table is the ML training corpus. Schema changes
+  # need a two-step apply — set this false, apply, then apply the schema change.
+  default = true
 }
 
 locals {
@@ -124,21 +124,27 @@ resource "google_pubsub_subscription" "events_to_bq" {
     table            = "${var.project_id}.${google_bigquery_dataset.analytics.dataset_id}.${google_bigquery_table.events.table_id}"
     use_table_schema = true
   }
-  depends_on = [google_bigquery_dataset_iam_member.pubsub_writer]
+  depends_on = [google_bigquery_table_iam_member.pubsub_writer]
 }
 
 data "google_project" "this" {
   project_id = var.project_id
 }
 
-# Granted on the dataset, not the table: a table-scoped binding is destroyed
-# along with the table on any schema change, which silently breaks the
-# subscription (writes fail with no error surfaced).
-resource "google_bigquery_dataset_iam_member" "pubsub_writer" {
+# Table-scoped (least privilege), with the lifecycle tied to the table itself:
+# a table-scoped binding is destroyed along with the table on any schema change,
+# and without replace_triggered_by Terraform would not recreate it — leaving the
+# subscription failing writes silently, with no error and no dead letter.
+resource "google_bigquery_table_iam_member" "pubsub_writer" {
   project    = var.project_id
   dataset_id = google_bigquery_dataset.analytics.dataset_id
+  table_id   = google_bigquery_table.events.table_id
   role       = "roles/bigquery.dataEditor"
   member     = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+
+  lifecycle {
+    replace_triggered_by = [google_bigquery_table.events]
+  }
 }
 
 # ------------------------------------------------------- runtime accounts

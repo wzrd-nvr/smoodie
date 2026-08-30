@@ -27,13 +27,19 @@ yet — they arrive with issue #6.
   drops every message whose target column is JSON-typed — no error, no dead
   letter, the message just sits in the backlog retrying. Payload lands as JSON
   text; wrap it in `PARSE_JSON()` in the per-event views.
-- **The Pub/Sub writer grant is dataset-scoped.** Table-scoped IAM is destroyed
-  along with the table on any schema change, silently breaking ingestion.
+- **The Pub/Sub writer grant is table-scoped with `replace_triggered_by`.**
+  Table-level IAM is destroyed along with the table on a schema change, and
+  Terraform will not recreate it on its own — ingestion then fails silently.
+  The lifecycle block ties the binding to the table so both are replaced
+  together. Verified by forcing a replacement and re-publishing.
+- **Duplicate delivery is real, not theoretical.** A single publish landed twice
+  with the same `event_id` during testing. Pub/Sub is at-least-once; every
+  consumer and view must dedupe on `event_id`.
 - **Changing the events table schema is a two-step apply**: Terraform refuses to
   destroy a table while `deletion_protection` is true, and it won't clear the
-  flag and replace the table in the same run. Apply the flag change alone first.
-- `bigquery_deletion_protection` defaults to **false** pre-launch. Flip it to
-  true in M5, before real data lands.
+  flag and replace the table in the same run. Set
+  `bigquery_deletion_protection = false`, apply, then apply the schema change,
+  then restore it to true.
 
 ## Rebuilding from scratch
 

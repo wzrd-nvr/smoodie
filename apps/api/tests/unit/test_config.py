@@ -1,7 +1,8 @@
 from smoodie_api.config import Settings
 
 
-def test_defaults() -> None:
+def test_defaults(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.delenv("SMOODIE_ENV", raising=False)
     s = Settings(_env_file=None)
     assert s.env == "local"
     assert s.tier1_scoring_floor == 0.35

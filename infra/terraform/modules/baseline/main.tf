@@ -14,6 +14,15 @@ variable "github_repo" {
   type    = string
   default = "wzrd-nvr/smoodie"
 }
+variable "deploy_ref" {
+  type    = string
+  default = "refs/heads/main" # only this ref may impersonate the deployer SA
+}
+variable "media_cors_origins" {
+  type = list(string)
+  # Dev origins by default; prod env overrides with the real app domains.
+  default = ["http://localhost:5173", "http://localhost:3000"]
+}
 
 locals {
   apis = [
@@ -52,7 +61,7 @@ resource "google_storage_bucket" "media" {
   location                    = var.region
   uniform_bucket_level_access = true
   cors {
-    origin          = ["*"] # tightened to app domains in issue #6
+    origin          = var.media_cors_origins
     method          = ["GET", "PUT"]
     response_header = ["Content-Type"]
     max_age_seconds = 3600
@@ -144,9 +153,10 @@ resource "google_project_iam_member" "api_roles" {
   member  = "serviceAccount:${google_service_account.api.email}"
 }
 
+# objectUser: create/read/delete objects without ACL or bucket administration.
 resource "google_storage_bucket_iam_member" "api_media" {
   bucket = google_storage_bucket.media.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.api.email}"
 }
 
@@ -166,6 +176,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
     "attribute.repository" = "assertion.repository"
+    "attribute.repo_ref"   = "assertion.repository + \"@\" + assertion.ref"
   }
   attribute_condition = "assertion.repository == \"${var.github_repo}\""
 
@@ -180,22 +191,35 @@ resource "google_service_account" "deployer" {
   display_name = "GitHub Actions deployer"
 }
 
+# Only workflows on the deploy ref (main) may impersonate the deployer —
+# PRs and other branches authenticate but get no principalSet match.
 resource "google_service_account_iam_member" "deployer_wif" {
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repo_ref/${var.github_repo}@${var.deploy_ref}"
 }
 
 resource "google_project_iam_member" "deployer_roles" {
   for_each = toset([
     "roles/run.developer",
     "roles/artifactregistry.writer",
-    "roles/iam.serviceAccountUser",
     "roles/cloudsql.client",
   ])
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+# actAs scoped to the two runtime SAs only — never project-wide serviceAccountUser,
+# which would let the deployer impersonate every SA in the project.
+resource "google_service_account_iam_member" "deployer_act_as" {
+  for_each = {
+    api = google_service_account.api.name
+    web = google_service_account.web.name
+  }
+  service_account_id = each.value
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deployer.email}"
 }
 
 # ----------------------------------------------------------------- outputs

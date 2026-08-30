@@ -23,6 +23,12 @@ variable "media_cors_origins" {
   # Dev origins by default; prod env overrides with the real app domains.
   default = ["http://localhost:5173", "http://localhost:3000"]
 }
+variable "bigquery_deletion_protection" {
+  type = bool
+  # Pre-launch the events table carries only test data and the schema is still
+  # settling. Flipped to true in M5 launch hardening, before real data lands.
+  default = false
+}
 
 locals {
   apis = [
@@ -86,7 +92,7 @@ resource "google_bigquery_table" "events" {
   project             = var.project_id
   dataset_id          = google_bigquery_dataset.analytics.dataset_id
   table_id            = "events"
-  deletion_protection = true
+  deletion_protection = var.bigquery_deletion_protection
 
   time_partitioning {
     type  = "DAY"
@@ -102,7 +108,10 @@ resource "google_bigquery_table" "events" {
     { name = "entity_type", type = "STRING", mode = "NULLABLE" },
     { name = "entity_id", type = "STRING", mode = "NULLABLE" },
     { name = "occurred_at", type = "TIMESTAMP", mode = "REQUIRED" },
-    { name = "payload", type = "JSON", mode = "NULLABLE" },
+    # STRING, not JSON: a Pub/Sub BigQuery subscription silently drops every
+    # message whose target column is JSON-typed. Payload lands as JSON text and
+    # the per-event views wrap it in PARSE_JSON.
+    { name = "payload", type = "STRING", mode = "NULLABLE" },
   ])
 }
 
@@ -115,17 +124,19 @@ resource "google_pubsub_subscription" "events_to_bq" {
     table            = "${var.project_id}.${google_bigquery_dataset.analytics.dataset_id}.${google_bigquery_table.events.table_id}"
     use_table_schema = true
   }
-  depends_on = [google_bigquery_table_iam_member.pubsub_writer]
+  depends_on = [google_bigquery_dataset_iam_member.pubsub_writer]
 }
 
 data "google_project" "this" {
   project_id = var.project_id
 }
 
-resource "google_bigquery_table_iam_member" "pubsub_writer" {
+# Granted on the dataset, not the table: a table-scoped binding is destroyed
+# along with the table on any schema change, which silently breaks the
+# subscription (writes fail with no error surfaced).
+resource "google_bigquery_dataset_iam_member" "pubsub_writer" {
   project    = var.project_id
   dataset_id = google_bigquery_dataset.analytics.dataset_id
-  table_id   = google_bigquery_table.events.table_id
   role       = "roles/bigquery.dataEditor"
   member     = "serviceAccount:service-${data.google_project.this.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }

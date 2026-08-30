@@ -1,10 +1,9 @@
 terraform {
   required_version = ">= 1.9"
-  # Uncomment after creating the state bucket (see infra/terraform/README.md):
-  # backend "gcs" {
-  #   bucket = "smoodie-prod-tfstate"
-  #   prefix = "envs/prod"
-  # }
+  backend "gcs" {
+    bucket = "smoodie-prod-tfstate"
+    prefix = "envs/prod"
+  }
 }
 
 provider "google" {

@@ -5,6 +5,7 @@ automatically — not an ID token held in client JavaScript. Exchanging once her
 also means the short-lived ID token never has to be refreshed by the SSR layer.
 """
 
+import logging
 from datetime import timedelta
 from typing import Annotated
 
@@ -23,6 +24,7 @@ from smoodie_api.schemas.user import PublicProfile, SessionRequest, SessionRespo
 from smoodie_api.services import users as user_service
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/session", response_model=SessionResponse)
@@ -36,6 +38,10 @@ async def create_session(
     try:
         identity = verifier.verify_id_token(body.id_token)
     except InvalidToken as exc:
+        # The client gets a deliberately vague message; the operator needs the
+        # real reason, or a misconfiguration is indistinguishable from a bad
+        # password in the logs.
+        logger.warning("id token verification failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="That sign-in couldn't be verified. Try again.",
@@ -45,6 +51,7 @@ async def create_session(
     try:
         cookie = verifier.create_session_cookie(body.id_token, expires_in)
     except InvalidToken as exc:
+        logger.warning("session cookie creation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="That sign-in couldn't be verified. Try again.",

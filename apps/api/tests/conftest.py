@@ -18,7 +18,8 @@ from smoodie_api.auth.dependencies import get_verifier
 from smoodie_api.config import get_settings
 from smoodie_api.db import Base, get_session
 from smoodie_api.main import app
-from tests.fakes import FakeVerifier
+from smoodie_api.routers.media import get_object_store
+from tests.fakes import FakeObjectStore, FakeVerifier
 
 TEST_DATABASE_URL = os.environ.get(
     "SMOODIE_TEST_DATABASE_URL",
@@ -89,8 +90,15 @@ def verifier() -> FakeVerifier:
 
 
 @pytest.fixture
+def store() -> FakeObjectStore:
+    return FakeObjectStore()
+
+
+@pytest.fixture
 async def client(
-    session_factory: async_sessionmaker[AsyncSession], verifier: FakeVerifier
+    session_factory: async_sessionmaker[AsyncSession],
+    verifier: FakeVerifier,
+    store: FakeObjectStore,
 ) -> AsyncIterator[httpx.AsyncClient]:
     async def override_session() -> AsyncIterator[AsyncSession]:
         async with session_factory() as session:
@@ -98,6 +106,7 @@ async def client(
 
     app.dependency_overrides[get_session] = override_session
     app.dependency_overrides[get_verifier] = lambda: verifier
+    app.dependency_overrides[get_object_store] = lambda: store
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:

@@ -203,6 +203,26 @@ resource "google_storage_bucket_iam_member" "api_media" {
   member = "serviceAccount:${google_service_account.api.email}"
 }
 
+# Cloud Run hands the service account a token, never a private key, so signing a
+# V4 URL has to go through the IAM SignBlob API — which requires the account to
+# be allowed to impersonate itself. Without this, signed uploads fail at runtime
+# with a "you need a private key" error that never shows up locally.
+resource "google_service_account_iam_member" "api_self_signer" {
+  service_account_id = google_service_account.api.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.api.email}"
+}
+
+# Everything in this bucket is user-uploaded imagery meant to be seen: avatars
+# and post photos. Object paths carry a UUID, so an upload is unguessable before
+# its post is published. The alternative — signed GET URLs on every render —
+# would defeat CDN and browser caching for public recipe pages.
+resource "google_storage_bucket_iam_member" "media_public_read" {
+  bucket = google_storage_bucket.media.name
+  role   = "roles/storage.objectViewer"
+  member = "allUsers"
+}
+
 # --------------------------------------------- GitHub Actions via WIF
 resource "google_iam_workload_identity_pool" "github" {
   project                   = var.project_id

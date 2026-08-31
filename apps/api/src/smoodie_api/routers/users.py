@@ -3,11 +3,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from smoodie_api.auth.dependencies import CurrentUser
 from smoodie_api.db import get_session
+from smoodie_api.models.media import Media, MediaStatus
 from smoodie_api.schemas.user import ProfileUpdate, PublicProfile
 from smoodie_api.services import users as user_service
 from smoodie_api.services.events import record_event
@@ -29,6 +31,25 @@ async def update_me(
     changes = body.model_dump(exclude_unset=True)
     if not changes:
         return PublicProfile.model_validate(user)
+
+    # An avatar must be this user's own, finished upload. Without this check a
+    # caller could point their profile at anyone else's image, or at a row that
+    # was abandoned before the bytes ever landed.
+    if changes.get("avatar_media_id") is not None:
+        avatar = (
+            await session.execute(
+                select(Media).where(
+                    Media.id == changes["avatar_media_id"],
+                    Media.owner_id == user.id,
+                    Media.status == MediaStatus.READY,
+                )
+            )
+        ).scalar_one_or_none()
+        if avatar is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="That image isn't available. Upload it again.",
+            )
 
     for field, value in changes.items():
         setattr(user, field, value)

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 from smoodie_api.auth.verifier import InvalidToken, VerifiedIdentity
+from smoodie_api.services.storage import StorageError, StoredObject
 
 
 class FakeVerifier:
@@ -59,3 +60,38 @@ class FakeVerifier:
 
     def revoke_refresh_tokens(self, uid: str) -> None:
         self.revoked.append(uid)
+
+
+class FakeObjectStore:
+    """In-memory stand-in for GCS.
+
+    Lets tests express the states that actually matter — the object never
+    arrived, arrived too large, arrived as the wrong type — none of which are
+    reachable through a real bucket without uploading real bytes.
+    """
+
+    def __init__(self) -> None:
+        self.objects: dict[str, StoredObject] = {}
+        self.signed: list[tuple[str, str]] = []
+        self.deleted: list[str] = []
+        self.fail_signing = False
+
+    def signed_upload_url(self, name: str, content_type: str, expires_in: timedelta) -> str:
+        if self.fail_signing:
+            raise StorageError("signing unavailable")
+        self.signed.append((name, content_type))
+        return f"https://upload.example/{name}?sig=test"
+
+    def put(self, name: str, size: int, content_type: str) -> None:
+        """Simulate the browser completing its PUT."""
+        self.objects[name] = StoredObject(name=name, size=size, content_type=content_type)
+
+    def stat(self, name: str) -> StoredObject | None:
+        return self.objects.get(name)
+
+    def delete(self, name: str) -> None:
+        self.deleted.append(name)
+        self.objects.pop(name, None)
+
+    def public_url(self, name: str) -> str:
+        return f"https://cdn.example/{name}"

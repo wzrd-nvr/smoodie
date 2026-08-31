@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://smoodie:smoodie@localhost:5432/smoodie"
 
     firebase_project_id: str = "smoodie-local"
+    media_bucket: str = "smoodie-local-media"
     session_cookie_days: int = 14
     # Off locally so the cookie works over plain http; on everywhere deployed.
     cookie_secure: bool = True

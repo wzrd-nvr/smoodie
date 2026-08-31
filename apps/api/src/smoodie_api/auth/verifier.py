@@ -55,7 +55,7 @@ def _identity_from_claims(claims: dict[str, Any]) -> VerifiedIdentity:
     )
 
 
-class FirebaseTokenVerifier:
+class FirebaseTokenVerifier:  # pragma: no cover - thin adapter, exercised via FakeVerifier
     """Real verifier. Uses Application Default Credentials on Cloud Run."""
 
     def __init__(self, project_id: str) -> None:

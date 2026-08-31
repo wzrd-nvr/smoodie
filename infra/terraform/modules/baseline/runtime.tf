@@ -140,6 +140,10 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.project_id
       }
       env {
+        name  = "SMOODIE_MEDIA_BUCKET"
+        value = google_storage_bucket.media.name
+      }
+      env {
         name = "SMOODIE_DATABASE_URL"
         value_source {
           secret_key_ref {

@@ -2,5 +2,11 @@ packages:
   - apps/web
   - packages/*
 
+# Neither postinstall script is needed: we use the browser auth SDK only, not
+# the gRPC/protobuf paths those scripts prepare.
+allowBuilds:
+  '@firebase/util': false
+  protobufjs: false
+
 executionEnv:
   nodeVersion: 24.20.0

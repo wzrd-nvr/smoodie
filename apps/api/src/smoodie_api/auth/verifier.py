@@ -70,8 +70,13 @@ class FirebaseTokenVerifier:
         return str(cookie)
 
     def verify_session_cookie(self, cookie: str) -> VerifiedIdentity:
+        # check_revoked is deliberately off here. This runs on every
+        # authenticated request, and each revocation check is a network round
+        # trip to Identity Toolkit — that cost belongs on the once-per-login
+        # path, not on every page load. Sign-out clears the cookie, and the
+        # cookie's own expiry bounds the window.
         try:
-            claims = firebase_auth.verify_session_cookie(cookie, check_revoked=True)
+            claims = firebase_auth.verify_session_cookie(cookie, check_revoked=False)
         except Exception as exc:
             raise InvalidToken(str(exc)) from exc
         return _identity_from_claims(claims)

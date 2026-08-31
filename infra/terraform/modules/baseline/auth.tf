@@ -34,6 +34,16 @@ data "google_firebase_web_app_config" "web" {
   web_app_id = google_firebase_web_app.web.app_id
 }
 
+# Minting a session cookie and checking token revocation both call Identity
+# Toolkit, which the runtime account cannot do without this. There is no
+# narrower predefined role that covers session-cookie creation, so it is granted
+# to the API service account alone and to nothing else.
+resource "google_project_iam_member" "api_firebase_auth" {
+  project = var.project_id
+  role    = "roles/firebaseauth.admin"
+  member  = "serviceAccount:${google_service_account.api.email}"
+}
+
 resource "google_identity_platform_config" "auth" {
   provider = google-beta
   project  = var.project_id

@@ -7,7 +7,7 @@ own, which is what makes that substitution safe.
 """
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 import firebase_admin
@@ -25,6 +25,9 @@ class VerifiedIdentity:
     email: str | None
     email_verified: bool
     name: str | None
+    # When the underlying sign-in happened. Compared against the account's
+    # sessions_valid_after so revocation is enforced without a network call.
+    auth_time: datetime | None = None
 
 
 class TokenVerifier(Protocol):
@@ -38,11 +41,17 @@ class TokenVerifier(Protocol):
 
 
 def _identity_from_claims(claims: dict[str, Any]) -> VerifiedIdentity:
+    raw_auth_time = claims.get("auth_time") or claims.get("iat")
+    auth_time: datetime | None = None
+    if isinstance(raw_auth_time, int | float):
+        auth_time = datetime.fromtimestamp(raw_auth_time, tz=UTC)
+
     return VerifiedIdentity(
         uid=claims["uid"] if "uid" in claims else claims["sub"],
         email=claims.get("email"),
         email_verified=bool(claims.get("email_verified", False)),
         name=claims.get("name"),
+        auth_time=auth_time,
     )
 
 

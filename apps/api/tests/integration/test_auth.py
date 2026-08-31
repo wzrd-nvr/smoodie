@@ -1,5 +1,7 @@
 """Session exchange and the auth dependency, end to end against Postgres."""
 
+from dataclasses import replace
+
 import httpx
 import pytest
 from sqlalchemy import select
@@ -139,6 +141,58 @@ async def test_deleted_account_cannot_use_its_session(
     from datetime import UTC, datetime
 
     user.deleted_at = datetime.now(UTC)
+    await db.commit()
+
+    assert (await client.get("/v1/users/me")).status_code == 401
+
+
+async def test_sessions_issued_before_revocation_are_refused(
+    client: httpx.AsyncClient, verifier: FakeVerifier, db: AsyncSession
+) -> None:
+    """Firebase's own revocation check is skipped on the hot path, so this is
+    the mechanism that has to hold: invalidating sessions must take effect on
+    the very next request, not whenever the cookie happens to expire."""
+    from datetime import UTC, datetime, timedelta
+
+    signed_in_at = datetime.now(UTC) - timedelta(hours=1)
+    verifier.register("tok", uid="firebase-1", email="angel@example.com", auth_time=signed_in_at)
+    await client.post("/v1/auth/session", json={"id_token": "tok"})
+    assert (await client.get("/v1/users/me")).status_code == 200
+
+    user = (await db.execute(select(User))).scalar_one()
+    user.sessions_valid_after = datetime.now(UTC)
+    await db.commit()
+
+    assert (await client.get("/v1/users/me")).status_code == 401
+
+
+async def test_sessions_issued_after_revocation_still_work(
+    client: httpx.AsyncClient, verifier: FakeVerifier, db: AsyncSession
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    verifier.register("tok", uid="firebase-1", email="angel@example.com")
+    await client.post("/v1/auth/session", json={"id_token": "tok"})
+
+    user = (await db.execute(select(User))).scalar_one()
+    user.sessions_valid_after = datetime.now(UTC) - timedelta(hours=1)
+    await db.commit()
+
+    assert (await client.get("/v1/users/me")).status_code == 200
+
+
+async def test_a_session_without_auth_time_is_treated_as_revoked(
+    client: httpx.AsyncClient, verifier: FakeVerifier, db: AsyncSession
+) -> None:
+    """Fail closed: a session we cannot date cannot be proven current."""
+    from datetime import UTC, datetime
+
+    verifier.register("tok", uid="firebase-1", email="angel@example.com")
+    await client.post("/v1/auth/session", json={"id_token": "tok"})
+
+    verifier.identities["tok"] = replace(verifier.identities["tok"], auth_time=None)
+    user = (await db.execute(select(User))).scalar_one()
+    user.sessions_valid_after = datetime.now(UTC)
     await db.commit()
 
     assert (await client.get("/v1/users/me")).status_code == 401

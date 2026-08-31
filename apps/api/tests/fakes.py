@@ -1,6 +1,6 @@
 """Test doubles."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from smoodie_api.auth.verifier import InvalidToken, VerifiedIdentity
 
@@ -27,12 +27,14 @@ class FakeVerifier:
         email: str | None = None,
         name: str | None = None,
         email_verified: bool = True,
+        auth_time: datetime | None = None,
     ) -> VerifiedIdentity:
         identity = VerifiedIdentity(
             uid=uid or f"uid-{token}",
             email=email,
             email_verified=email_verified,
             name=name,
+            auth_time=auth_time or datetime.now(UTC),
         )
         self.identities[token] = identity
         return identity

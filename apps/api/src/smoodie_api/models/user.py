@@ -30,3 +30,11 @@ class User(Base):
     )
     # Soft delete: keeps authored content attributable after account removal.
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Sessions established before this instant are refused. Lets us invalidate
+    # every outstanding session for an account immediately — a password reset,
+    # a compromise, a "sign out everywhere" — without a per-request round trip
+    # to Identity Toolkit.
+    sessions_valid_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

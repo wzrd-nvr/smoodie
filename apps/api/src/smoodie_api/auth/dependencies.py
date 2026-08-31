@@ -9,6 +9,7 @@ from smoodie_api.auth.verifier import (
     FirebaseTokenVerifier,
     InvalidToken,
     TokenVerifier,
+    VerifiedIdentity,
 )
 from smoodie_api.config import get_settings
 from smoodie_api.db import get_session
@@ -44,7 +45,27 @@ async def get_current_user(
     user = await user_service.get_by_firebase_uid(session, identity.uid)
     if user is None or user.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account not found.")
+    if session_is_revoked(user, identity):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your session has expired. Sign in again.",
+        )
     return user
+
+
+def session_is_revoked(user: User, identity: VerifiedIdentity) -> bool:
+    """True when the account has invalidated sessions older than this one.
+
+    Firebase's own revocation check is a network call we deliberately skip on
+    this hot path, so revocation is enforced here instead: any session that
+    began before sessions_valid_after is refused immediately. A session with no
+    auth_time claim cannot be proven current, so it is treated as revoked.
+    """
+    if user.sessions_valid_after is None:
+        return False
+    if identity.auth_time is None:
+        return True
+    return identity.auth_time < user.sessions_valid_after
 
 
 async def get_current_user_optional(
@@ -60,7 +81,9 @@ async def get_current_user_optional(
     except InvalidToken:
         return None
     user = await user_service.get_by_firebase_uid(session, identity.uid)
-    return user if user is not None and user.deleted_at is None else None
+    if user is None or user.deleted_at is not None or session_is_revoked(user, identity):
+        return None
+    return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

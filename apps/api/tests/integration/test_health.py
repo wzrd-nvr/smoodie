@@ -15,12 +15,12 @@ async def test_health_returns_ok() -> None:
     assert body["database"] in {"ok", "unavailable"}
 
 
-def test_health_path_is_not_healthz() -> None:
+def test_no_route_is_named_healthz() -> None:
     """Cloud Run's frontend swallows /healthz before it reaches the container.
 
-    Pinning the path here so a rename back to /healthz fails in CI rather than
-    silently breaking the deploy smoke test.
+    Checked against the published OpenAPI paths rather than app.routes, which
+    holds router objects without a .path once include_router is used.
     """
-    paths = {route.path for route in app.routes}  # type: ignore[attr-defined]
+    paths = set(app.openapi()["paths"])
     assert "/health" in paths
     assert "/healthz" not in paths

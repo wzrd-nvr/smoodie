@@ -134,6 +134,11 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "SMOODIE_ENV"
         value = var.env
       }
+      # firebase-admin verifies tokens against this project using ADC.
+      env {
+        name  = "SMOODIE_FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
       env {
         name = "SMOODIE_DATABASE_URL"
         value_source {
@@ -203,6 +208,24 @@ resource "google_cloud_run_v2_service" "web" {
       env {
         name  = "API_BASE_URL"
         value = google_cloud_run_v2_service.api.uri
+      }
+      # Firebase web client config. The API key is a project identifier rather
+      # than a credential, but it is env-specific so it is injected, not committed.
+      env {
+        name  = "FIREBASE_API_KEY"
+        value = data.google_firebase_web_app_config.web.api_key
+      }
+      env {
+        name  = "FIREBASE_AUTH_DOMAIN"
+        value = data.google_firebase_web_app_config.web.auth_domain
+      }
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "FIREBASE_APP_ID"
+        value = google_firebase_web_app.web.app_id
       }
 
       resources {

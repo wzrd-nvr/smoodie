@@ -12,6 +12,7 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "greenlet>=3.1",
+    "firebase-admin>=7.5.0",
 ]
 
 [dependency-groups]
@@ -41,9 +42,19 @@ strict = true
 packages = ["smoodie_api"]
 mypy_path = "src"
 
+# firebase-admin ships no type information. Scoped to that one import rather
+# than relaxing strictness anywhere else.
+[[tool.mypy.overrides]]
+module = ["firebase_admin.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# "." makes tests/ importable as a package (shared fakes); "src" means the
+# suite does not depend on the editable install resolving, which has broken
+# once already.
+pythonpath = [".", "src"]
 
 [tool.coverage.run]
 source = ["smoodie_api"]

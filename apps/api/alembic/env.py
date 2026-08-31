@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import smoodie_api.models  # noqa: F401  -- registers models on Base.metadata
 from smoodie_api.config import get_settings
 from smoodie_api.db import Base
 

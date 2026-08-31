@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 6.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.6"
@@ -45,7 +49,14 @@ variable "bigquery_deletion_protection" {
 }
 
 locals {
+  # Note: cloudresourcemanager, serviceusage and iam must be enabled out of band
+  # before the first apply — with user_project_override the provider needs them
+  # just to read state. They are listed here so they stay enabled, not to
+  # bootstrap them. See infra/terraform/README.md.
   apis = [
+    "cloudresourcemanager.googleapis.com",
+    "serviceusage.googleapis.com",
+    "iam.googleapis.com",
     "run.googleapis.com",
     "cloudbuild.googleapis.com",
     "sqladmin.googleapis.com",

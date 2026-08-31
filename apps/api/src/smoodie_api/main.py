@@ -6,8 +6,12 @@ from sqlalchemy import text
 
 from smoodie_api.config import get_settings
 from smoodie_api.db import engine
+from smoodie_api.routers import auth, users
 
 app = FastAPI(title="smoodie API", version="0.1.0")
+
+app.include_router(auth.router)
+app.include_router(users.router)
 
 
 class Health(BaseModel):

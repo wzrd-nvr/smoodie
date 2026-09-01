@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -15,9 +16,15 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from smoodie_api.db import Base, pg_enum
+
+if TYPE_CHECKING:
+    # Import-time cycles: these modules import Post in turn, so the names exist
+    # only for the type checker and are resolved by SQLAlchemy at mapper config.
+    from smoodie_api.models.recipe import PostMedia, Recipe
+    from smoodie_api.models.user import User
 
 
 class PostType(enum.StrEnum):
@@ -87,3 +94,13 @@ class Post(Base):
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    author: Mapped["User"] = relationship(lazy="raise")
+    recipe: Mapped["Recipe | None"] = relationship(
+        back_populates="post", cascade="all, delete-orphan", uselist=False, lazy="raise"
+    )
+    media_links: Mapped[list["PostMedia"]] = relationship(
+        cascade="all, delete-orphan",
+        order_by="PostMedia.position",
+        lazy="raise",
+    )

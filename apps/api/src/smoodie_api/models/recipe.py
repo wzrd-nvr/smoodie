@@ -1,5 +1,6 @@
 import enum
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -14,9 +15,12 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from smoodie_api.db import Base, pg_enum
+
+if TYPE_CHECKING:
+    from smoodie_api.models.post import Post
 
 
 class Difficulty(enum.StrEnum):
@@ -83,6 +87,18 @@ class Recipe(Base):
     # because a cocktail and a braise are not comparable on a global average.
     expected_active_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expected_total_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    post: Mapped["Post"] = relationship(back_populates="recipe", lazy="raise")
+    ingredients: Mapped[list["RecipeIngredient"]] = relationship(
+        cascade="all, delete-orphan",
+        order_by="RecipeIngredient.position",
+        lazy="raise",
+    )
+    steps: Mapped[list["RecipeStep"]] = relationship(
+        cascade="all, delete-orphan",
+        order_by="RecipeStep.position",
+        lazy="raise",
+    )
 
 
 class RecipeIngredient(Base):

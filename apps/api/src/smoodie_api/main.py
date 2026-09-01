@@ -6,12 +6,13 @@ from sqlalchemy import text
 
 from smoodie_api.config import get_settings
 from smoodie_api.db import engine
-from smoodie_api.routers import auth, media, users
+from smoodie_api.routers import auth, media, posts, users
 
 app = FastAPI(title="smoodie API", version="0.1.0")
 
 app.include_router(auth.router)
 app.include_router(media.router)
+app.include_router(posts.router)
 app.include_router(users.router)
 
 

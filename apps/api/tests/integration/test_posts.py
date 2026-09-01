@@ -403,3 +403,46 @@ async def test_recipe_version_survives_an_unrelated_edit(
 
     recipe = (await db.execute(select(Recipe))).scalar_one()
     assert recipe.version == 1
+
+
+async def test_errors_come_only_from_the_matching_post_type(
+    client: httpx.AsyncClient, verifier: FakeVerifier
+) -> None:
+    """The union is discriminated on `type`, so an invalid recipe must not also
+    report why it failed to be a discussion. Wrapping the union in Body()
+    silently discards the discriminator and produces exactly that noise.
+    """
+    await _sign_in(client, verifier, uid="u1", email="angel@example.com")
+
+    resp = await client.post(
+        "/v1/posts",
+        json={
+            "type": "recipe",
+            "title": "Only one ingredient here",
+            "media_ids": [],
+            "recipe": _recipe_body(
+                ingredients=[
+                    {"position": 1, "quantity": 1, "unit": "cup", "ingredient_name": "flour"}
+                ]
+            ),
+        },
+    )
+
+    assert resp.status_code == 422
+    errors = resp.json()["detail"]
+    messages = [e["msg"] for e in errors]
+    assert any("at least 2 ingredients" in m for m in messages), messages
+    # The tell-tale of a lost discriminator is a tag-mismatch error from the
+    # branch that was never meant to match.
+    assert not any("Input should be" in m for m in messages), messages
+    assert len(errors) == 1, messages
+
+
+async def test_the_schema_advertises_the_discriminator(client: httpx.AsyncClient) -> None:
+    """Client generators need it to emit a tagged union rather than a guess."""
+    spec = (await client.get("/openapi.json")).json()
+    schema = spec["paths"]["/v1/posts"]["post"]["requestBody"]["content"]["application/json"][
+        "schema"
+    ]
+    assert "oneOf" in schema
+    assert schema["discriminator"]["propertyName"] == "type"

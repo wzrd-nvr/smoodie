@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from smoodie_api.auth.dependencies import CurrentUser
@@ -91,7 +91,7 @@ async def list_posts(
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    body: Annotated[PostCreate, Body()],
+    body: PostCreate,
     user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> PostOut:

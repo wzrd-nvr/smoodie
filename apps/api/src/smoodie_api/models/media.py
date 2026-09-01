@@ -2,11 +2,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from smoodie_api.db import Base
+from smoodie_api.db import Base, pg_enum
 
 
 class MediaStatus(enum.StrEnum):
@@ -36,7 +36,7 @@ class Media(Base):
     content_type: Mapped[str] = mapped_column(String(64))
     bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[MediaStatus] = mapped_column(
-        Enum(MediaStatus, name="media_status", native_enum=True),
+        pg_enum(MediaStatus, "media_status"),
         default=MediaStatus.PENDING,
         index=True,
     )

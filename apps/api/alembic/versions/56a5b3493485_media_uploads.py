@@ -54,4 +54,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_media_status"), table_name="media")
     op.drop_index(op.f("ix_media_owner_id"), table_name="media")
     op.drop_table("media")
+    # Postgres keeps an enum type after its last table is dropped, so without
+    # this a rollback followed by a re-upgrade fails with "type already exists".
+    op.execute("DROP TYPE IF EXISTS media_status")
     # ### end Alembic commands ###

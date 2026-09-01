@@ -446,3 +446,40 @@ async def test_the_schema_advertises_the_discriminator(client: httpx.AsyncClient
     ]
     assert "oneOf" in schema
     assert schema["discriminator"]["propertyName"] == "type"
+
+
+async def test_the_edit_response_reflects_the_new_ingredient_set(
+    client: httpx.AsyncClient, verifier: FakeVerifier, store: FakeObjectStore
+) -> None:
+    """The composer renders whatever the PATCH returns.
+
+    The bulk delete that replaces the ingredient set bypasses the identity map,
+    and the session does not expire on commit, so without an explicit refresh
+    the response carries the collection as it was before the edit — correct in
+    the database, wrong on the screen.
+    """
+    await _sign_in(client, verifier, uid="u1", email="angel@example.com")
+    post = await _create_recipe(client, store)  # starts with 2 ingredients
+
+    resp = await client.patch(
+        f"/v1/posts/{post['id']}",
+        json={
+            "recipe": _recipe_body(
+                ingredients=[
+                    {"position": 1, "quantity": 1, "unit": "cup", "ingredient_name": "rice"},
+                    {"position": 2, "quantity": 2, "unit": "cup", "ingredient_name": "stock"},
+                    {"position": 3, "ingredient_name": "salt", "to_taste": True},
+                ],
+                steps=[
+                    {"position": 1, "instruction": "Toast the rice in the pan."},
+                    {"position": 2, "instruction": "Add the stock and simmer."},
+                ],
+            )
+        },
+    )
+
+    returned = [i["ingredient_name"] for i in resp.json()["recipe"]["ingredients"]]
+    assert returned == ["rice", "stock", "salt"], returned
+
+    fresh = (await client.get(f"/v1/posts/{post['id']}")).json()
+    assert [i["ingredient_name"] for i in fresh["recipe"]["ingredients"]] == returned

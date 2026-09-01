@@ -104,6 +104,11 @@ async def create_post(
         ) from exc
 
     await session.commit()
+    # expire_on_commit is off, so re-reading would otherwise hand back the
+    # identity-mapped objects rather than what was written. Detaching rather
+    # than expiring: an expired attribute refreshes lazily, which cannot run
+    # on an async session.
+    session.expunge_all()
     created = await post_service.get_post(session, post.id)
     assert created is not None
     return _to_out(created)
@@ -149,6 +154,10 @@ async def update_post(
         ) from exc
 
     await session.commit()
+    # Replacing the ingredient and step sets uses bulk deletes, which bypass the
+    # identity map. Without detaching, the response shows the recipe as it was
+    # before the edit — right in the database, wrong on the screen.
+    session.expunge_all()
     updated = await post_service.get_post(session, post_id)
     assert updated is not None
     return _to_out(updated)

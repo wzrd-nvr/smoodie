@@ -17,7 +17,20 @@ export type ApiResult<T> =
 /** Field-addressed errors so forms can render messages next to the input. */
 export type ApiError = {
   message: string;
+  /**
+   * Keyed by the last segment of the error's location — `username`, `bio`.
+   * Right for a flat form, and ambiguous for a repeated one: two ingredient
+   * rows both report under `quantity`.
+   */
   fieldErrors: Record<string, string>;
+  /**
+   * Keyed by the full dotted path with the `body` prefix removed —
+   * `recipe.ingredients.0.quantity`. Repeated rows stay distinguishable, so
+   * the composer can put each message beside the row that caused it. A
+   * whole-payload error (one raised by a model validator rather than a field)
+   * lands under the empty string.
+   */
+  pathErrors: Record<string, string>;
 };
 
 type FastApiDetail =
@@ -33,21 +46,32 @@ export function parseApiError(status: number, body: unknown): ApiError {
   const detail = (body as { detail?: FastApiDetail } | null)?.detail;
 
   if (typeof detail === "string") {
-    return { message: detail, fieldErrors: {} };
+    return { message: detail, fieldErrors: {}, pathErrors: {} };
   }
 
   if (Array.isArray(detail)) {
     const fieldErrors: Record<string, string> = {};
+    const pathErrors: Record<string, string> = {};
+    let firstMessage: string | undefined;
+
     for (const item of detail) {
-      const field = item.loc?.[item.loc.length - 1];
+      const loc = item.loc ?? [];
+      // FastAPI prefixes request-body errors with "body"; it locates the error
+      // for the server and means nothing to the form.
+      const path = (loc[0] === "body" ? loc.slice(1) : loc).join(".");
+      if (!(path in pathErrors)) pathErrors[path] = item.msg;
+
+      const field = loc[loc.length - 1];
       if (typeof field === "string" && !(field in fieldErrors)) {
         fieldErrors[field] = item.msg;
       }
+      firstMessage ??= item.msg;
     }
-    const first = Object.values(fieldErrors)[0];
+
     return {
-      message: first ?? "Something in that form wasn't valid.",
+      message: firstMessage ?? "Something in that form wasn't valid.",
       fieldErrors,
+      pathErrors,
     };
   }
 
@@ -57,6 +81,7 @@ export function parseApiError(status: number, body: unknown): ApiError {
         ? "smoodie is having a problem. Try again in a moment."
         : "That didn't work.",
     fieldErrors: {},
+    pathErrors: {},
   };
 }
 

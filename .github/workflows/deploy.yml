@@ -91,18 +91,14 @@ jobs:
             --project="${PROJECT_ID}" \
             --quiet
 
+      # `make smoke` is the same target a human or an agent runs by hand against
+      # a deployed environment; the URLs are the only thing CI supplies.
       - name: Smoke test
         run: |
           API_URL="$(gcloud run services describe smoodie-api --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
           WEB_URL="$(gcloud run services describe smoodie-web --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
-          echo "api: ${API_URL}"
-          echo "web: ${WEB_URL}"
 
-          health="$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${API_URL}/health")"
-          echo "health: ${health}"
-          echo "${health}" | grep -q '"database":"ok"' || { echo "::error::API cannot reach Cloud SQL"; exit 1; }
-
-          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "${WEB_URL}/" | grep -qi "smoodie" || { echo "::error::web did not render"; exit 1; }
+          make smoke SMOKE_API_URL="${API_URL}" SMOKE_WEB_URL="${WEB_URL}"
 
           {
             echo "### Deployed"

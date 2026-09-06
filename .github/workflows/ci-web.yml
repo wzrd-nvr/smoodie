@@ -2,10 +2,10 @@ name: ci-web
 
 on:
   pull_request:
-    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", ".github/workflows/ci-web.yml"]
+    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", "Makefile", ".github/workflows/ci-web.yml"]
   push:
     branches: [main]
-    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", ".github/workflows/ci-web.yml"]
+    paths: ["apps/web/**", "packages/**", "pnpm-workspace.yaml", "Makefile", ".github/workflows/ci-web.yml"]
 
 jobs:
   test:
@@ -18,7 +18,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter web typecheck
-      - run: pnpm --filter web lint
-      - run: pnpm --filter web test
-      - run: pnpm --filter web build
+      # The same target an agent runs before proposing a change. There is no
+      # weaker path for agent-authored pull requests and no bypass label.
+      - run: make verify-web

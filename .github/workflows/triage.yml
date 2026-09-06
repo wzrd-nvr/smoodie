@@ -1,0 +1,35 @@
+name: issue-triage
+# Read-only except for adding one label. It never comments, never closes, and
+# never touches code. Pattern: anthropics/claude-code oncall-triage.yml.
+#
+# INERT until an ANTHROPIC_API_KEY repository secret exists. With no secret the
+# action fails on every scheduled run rather than doing anything unexpected.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+permissions:
+  issues: write
+  contents: read
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Read skills/triage/SKILL.md and ONCALL.md.
+
+            List open issues labelled `type:bug` updated in the last 3 days. For
+            each, decide whether it blocks a user from a core smoodie flow:
+            signing in, publishing a recipe, or loading a recipe page. The
+            severity norms in ONCALL.md define this; apply them literally.
+
+            Be conservative. An issue you are unsure about is not labelled.
+
+            Your ONLY action is `gh issue edit <n> --add-label oncall` on
+            qualifying issues. Do not comment. Do not close. Do not edit code.
+            Do not add any other label.
+          claude_args: "--allowedTools Bash(gh issue list*),Bash(gh issue view*),Bash(gh issue edit*)"

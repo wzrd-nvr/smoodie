@@ -35,6 +35,9 @@ label "prio:P3" "FEF2C0" "Backlog"
 label "phase:mvp"      "006B75" "Phase 1 MVP scope"
 label "phase:post-mvp" "76428A" "Phase 2: cook mode, Tier 2, AI/ML"
 
+# The only label the scheduled triage workflow is allowed to apply.
+label "oncall" "E11D21" "Blocks a core flow; needs on-call attention"
+
 # ------------------------------------------------------------ milestones
 echo "==> Milestones"
 existing_ms=$(gh api "repos/$REPO/milestones?state=all&per_page=100" -q '.[].title')

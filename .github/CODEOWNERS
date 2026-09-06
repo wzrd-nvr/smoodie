@@ -1,0 +1,3 @@
+# Every PR has a named human owner. Agents are never owners.
+# Single maintainer today; split this by path when there is a second one.
+*  @wzrd-nvr

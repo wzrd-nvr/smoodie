@@ -2,14 +2,10 @@ name: ci-api
 
 on:
   pull_request:
-    paths: ["apps/api/**", ".github/workflows/ci-api.yml"]
+    paths: ["apps/api/**", "Makefile", ".github/workflows/ci-api.yml"]
   push:
     branches: [main]
-    paths: ["apps/api/**", ".github/workflows/ci-api.yml"]
-
-defaults:
-  run:
-    working-directory: apps/api
+    paths: ["apps/api/**", "Makefile", ".github/workflows/ci-api.yml"]
 
 jobs:
   test:
@@ -37,8 +33,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: apps/api/uv.lock
       - run: uv sync --frozen
-      - run: uv run ruff check src tests alembic
-      - run: uv run ruff format --check src tests alembic
-      - run: uv run mypy
-      - run: uv run alembic upgrade head
-      - run: uv run pytest --cov --cov-fail-under=80
+        working-directory: apps/api
+      # The same target an agent runs before proposing a change. There is no
+      # weaker path for agent-authored pull requests and no bypass label.
+      - run: make verify-api

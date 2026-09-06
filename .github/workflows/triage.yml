@@ -2,11 +2,18 @@ name: issue-triage
 # Read-only except for adding one label. It never comments, never closes, and
 # never touches code. Pattern: anthropics/claude-code oncall-triage.yml.
 #
-# INERT until an ANTHROPIC_API_KEY repository secret exists. With no secret the
-# action fails on every scheduled run rather than doing anything unexpected.
+# Manual-only for now. The schedule is commented out rather than deleted
+# because it is the intended end state: with no credential configured the
+# action fails on every run, and four failures a day is noise that trains you
+# to ignore the workflow. Restore the cron once a credential exists and there
+# are enough bug reports for triage to have something to do.
+#
+# Credential: either an ANTHROPIC_API_KEY secret (per-token Console billing) or
+# a CLAUDE_CODE_OAUTH_TOKEN secret from `claude setup-token`, which draws on a
+# Pro/Max subscription instead. Swap the `with:` key below to match.
 on:
-  schedule:
-    - cron: "0 */6 * * *"
+  # schedule:
+  #   - cron: "0 */6 * * *"
   workflow_dispatch:
 permissions:
   issues: write

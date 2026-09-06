@@ -122,6 +122,7 @@ export async function apiFetch<T>(
       error: {
         message: "Can't reach smoodie right now. Try again in a moment.",
         fieldErrors: {},
+        pathErrors: {},
       },
     };
   }

@@ -173,6 +173,24 @@ describe("parseComposerForm", () => {
     expect(state.steps.map((s) => s.id)).toEqual(["c", "d"]);
   });
 
+  test("tidies the fields the API tidies, and leaves markdown alone", () => {
+    const state = parseComposerForm(
+      formFrom([
+        ["kind", "recipe"],
+        ["title", "  Spaced  out  title "],
+        ["ing.0.name", "  smoked   paprika "],
+        ["step.0.instruction", "Stir\n\n  slowly until it thickens."],
+        ["body_md", "  A note.\n\n- one\n- two  "],
+      ]),
+    );
+
+    expect(state.title).toBe("Spaced out title");
+    expect(state.ingredients[0].name).toBe("smoked paprika");
+    expect(state.steps[0].instruction).toBe("Stir slowly until it thickens.");
+    // Markdown keeps its line breaks and list structure; only the ends are trimmed.
+    expect(state.bodyMd).toBe("A note.\n\n- one\n- two");
+  });
+
   test("counts rows from the keys present, not from a claimed total", () => {
     const state = parseComposerForm(
       formFrom([

@@ -130,6 +130,20 @@ function str(form: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * Collapse runs of whitespace, the way the API's own validators do before they
+ * measure or store a value. Without this the form and the API disagree about
+ * what was typed: the API stores "Spaced out title" while the composer keeps
+ * re-rendering "Spaced  out  title", and a length check near the minimum can
+ * pass on one side and fail on the other.
+ *
+ * Deliberately not applied to body_md — that is markdown, where indentation and
+ * line breaks are meaningful, and the API leaves it alone for the same reason.
+ */
+function tidy(form: FormData, key: string): string {
+  return str(form, key).replace(/\s+/g, " ");
+}
+
 function flag(form: FormData, key: string): boolean {
   return form.get(key) != null;
 }
@@ -153,11 +167,11 @@ export function parseComposerForm(form: FormData): ComposerState {
   for (let i = 0; i < rowCount(form, "ing"); i += 1) {
     ingredients.push({
       id: str(form, `ing.${i}.id`) || newRowId(),
-      groupLabel: str(form, `ing.${i}.group`),
+      groupLabel: tidy(form, `ing.${i}.group`),
       quantity: str(form, `ing.${i}.quantity`),
       unit: str(form, `ing.${i}.unit`),
-      name: str(form, `ing.${i}.name`),
-      note: str(form, `ing.${i}.note`),
+      name: tidy(form, `ing.${i}.name`),
+      note: tidy(form, `ing.${i}.note`),
       isOptional: flag(form, `ing.${i}.optional`),
       toTaste: flag(form, `ing.${i}.to_taste`),
     });
@@ -167,22 +181,23 @@ export function parseComposerForm(form: FormData): ComposerState {
   for (let i = 0; i < rowCount(form, "step"); i += 1) {
     steps.push({
       id: str(form, `step.${i}.id`) || newRowId(),
-      instruction: str(form, `step.${i}.instruction`),
+      instruction: tidy(form, `step.${i}.instruction`),
       minutes: str(form, `step.${i}.minutes`),
     });
   }
 
   return {
     kind,
-    title: str(form, "title"),
+    title: tidy(form, "title"),
+    // Markdown: interior whitespace is content, not noise.
     bodyMd: str(form, "body_md"),
     mediaIds: form.getAll("media_ids").filter((v): v is string => typeof v === "string"),
     servings: str(form, "servings"),
-    yieldText: str(form, "yield_text"),
+    yieldText: tidy(form, "yield_text"),
     prepMinutes: str(form, "prep_minutes"),
     cookMinutes: str(form, "cook_minutes"),
     difficulty: str(form, "difficulty"),
-    cuisine: str(form, "cuisine"),
+    cuisine: tidy(form, "cuisine"),
     dietaryTags: form.getAll("dietary").filter((v): v is string => typeof v === "string"),
     ingredients: ingredients.length ? ingredients : [emptyIngredient(), emptyIngredient()],
     steps: steps.length ? steps : [emptyStep(), emptyStep()],

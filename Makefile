@@ -87,14 +87,23 @@ verify-infra:
 SMOKE_API_URL ?=
 SMOKE_WEB_URL ?=
 
+# Each response is captured whole before it is matched. Piping curl into
+# `grep -q` looks equivalent and is not: grep exits at the first match, closes
+# the pipe, and curl dies with "(23) Failure writing output to destination",
+# then retries the whole request five times on a body it already received.
 smoke:
 	@test -n "$(SMOKE_API_URL)" || { echo "SMOKE_API_URL is unset"; exit 1; }
 	@test -n "$(SMOKE_WEB_URL)" || { echo "SMOKE_WEB_URL is unset"; exit 1; }
 	@echo "api: $(SMOKE_API_URL)"
 	@echo "web: $(SMOKE_WEB_URL)"
-	curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$(SMOKE_API_URL)/health" \
-	  | tee /dev/stderr | grep -q '"database":"ok"' \
-	  || { echo "API cannot reach Cloud SQL"; exit 1; }
-	curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$(SMOKE_WEB_URL)/" \
-	  | grep -qi "smoodie" \
-	  || { echo "web did not render"; exit 1; }
+	@health="$$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$(SMOKE_API_URL)/health")"; \
+	  echo "health: $$health"; \
+	  case "$$health" in \
+	    *'"database":"ok"'*) ;; \
+	    *) echo "API cannot reach Cloud SQL"; exit 1 ;; \
+	  esac
+	@body="$$(curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$(SMOKE_WEB_URL)/")"; \
+	  case "$$body" in \
+	    *[Ss]moodie*) ;; \
+	    *) echo "web did not render"; exit 1 ;; \
+	  esac

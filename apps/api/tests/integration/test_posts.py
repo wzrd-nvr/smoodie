@@ -483,3 +483,64 @@ async def test_the_edit_response_reflects_the_new_ingredient_set(
 
     fresh = (await client.get(f"/v1/posts/{post['id']}")).json()
     assert [i["ingredient_name"] for i in fresh["recipe"]["ingredients"]] == returned
+
+
+async def test_validation_errors_address_the_offending_row(
+    client: httpx.AsyncClient, verifier: FakeVerifier, store: FakeObjectStore
+) -> None:
+    """The composer renders each message beside the row that caused it, which
+    it can only do if `loc` identifies the row. This pins that contract: the
+    web client parses these paths, so a change here breaks the form silently."""
+    await _sign_in(client, verifier)
+    photo = await _photo(client, store)
+
+    resp = await client.post(
+        "/v1/posts",
+        json={
+            "type": "recipe",
+            "title": "Something plausible",
+            "media_ids": [photo],
+            "recipe": _recipe_body(
+                ingredients=[
+                    {"position": 1, "quantity": 1, "unit": "glug", "ingredient_name": "oil"},
+                    {"position": 2, "ingredient_name": "flour"},
+                ],
+                steps=[
+                    {"position": 1, "instruction": "Mix"},
+                    {"position": 2, "instruction": "Bake until golden and firm."},
+                ],
+            ),
+        },
+    )
+
+    assert resp.status_code == 422
+    locs = [tuple(item["loc"]) for item in resp.json()["detail"]]
+
+    # A bad unit is addressed to that ingredient's own field.
+    assert ("body", "recipe", "recipe", "ingredients", 0, "unit") in locs
+    # A row that fails as a whole is addressed to the row, without a field.
+    assert ("body", "recipe", "recipe", "ingredients", 1) in locs
+    # Steps are addressed the same way.
+    assert ("body", "recipe", "recipe", "steps", 0, "instruction") in locs
+
+
+async def test_missing_photo_is_reported_against_the_whole_post(
+    client: httpx.AsyncClient, verifier: FakeVerifier
+) -> None:
+    """This one belongs to no row, so it has to render as a form-level message."""
+    await _sign_in(client, verifier)
+
+    resp = await client.post(
+        "/v1/posts",
+        json={
+            "type": "recipe",
+            "title": "Something plausible",
+            "media_ids": [],
+            "recipe": _recipe_body(),
+        },
+    )
+
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert [tuple(item["loc"]) for item in detail] == [("body", "recipe")]
+    assert "photo" in detail[0]["msg"]

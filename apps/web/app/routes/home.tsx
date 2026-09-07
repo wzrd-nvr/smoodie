@@ -37,11 +37,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               @{user.username}
             </Link>
           </p>
-          <Form method="post" action="/logout">
-            <button type="submit" className="rounded-md border px-3 py-2 text-sm">
-              Sign out
-            </button>
-          </Form>
+          <div className="flex gap-3">
+            <Link to="/posts/new" className="rounded-md bg-emerald-700 px-4 py-2 text-white">
+              Share a recipe
+            </Link>
+            <Form method="post" action="/logout">
+              <button type="submit" className="rounded-md border px-3 py-2 text-sm">
+                Sign out
+              </button>
+            </Form>
+          </div>
         </div>
       ) : (
         <div className="flex gap-3">
